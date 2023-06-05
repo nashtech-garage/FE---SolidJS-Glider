@@ -1,8 +1,6 @@
 import { A } from '@solidjs/router';
-import { Component, onMount } from 'solid-js';
-import { getUsers } from '../db';
+import { Component } from 'solid-js';
 import useForm, {
-    // compareWith,
     firstUppercaseLetter,
     FormError,
     minLengthValidator,
@@ -12,7 +10,7 @@ import useRegister from '../hooks/useRegister';
 import { RegisterForm } from '../types/Form';
 
 const RegisterScreen: Component = () => {
-    const { register } = useRegister();
+    const { registerUser } = useRegister();
     const { handleInput, submitForm, validate, errors } = useForm<RegisterForm>(
         {
             fullName: '',
@@ -24,14 +22,9 @@ const RegisterScreen: Component = () => {
         }
     );
 
-    onMount(async () => {
-        const users = await getUsers();
-        console.log(users);
-    });
-
     // we want to get the data from the form when the form is submitted
     const onFormSubmit = (form: RegisterForm) => {
-        register(form);
+        registerUser(form);
     };
 
     return (
