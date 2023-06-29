@@ -1,4 +1,5 @@
 import { FirebaseError } from 'firebase/app';
+import { QueryDocumentSnapshot } from 'firebase/firestore';
 import { createSignal, onMount } from 'solid-js';
 import { createStore, produce } from 'solid-js/store';
 import { getGlides } from '../api/glide';
@@ -9,9 +10,10 @@ type State = {
         [key: string]: { glides: Glide[] };
     };
     loading: boolean;
+    lastGlide: QueryDocumentSnapshot | null;
 };
 
-const createInitState = () => ({ pages: {}, loading: false });
+const createInitState = () => ({ pages: {}, loading: false, lastGlide: null });
 
 const useGlides = () => {
     const [page, setPage] = createSignal(1);
@@ -23,9 +25,12 @@ const useGlides = () => {
 
     const loadGlides = async () => {
         const _page = page();
+        if (_page > 1 && !store.lastGlide) {
+            return;
+        }
         setStore('loading', true);
         try {
-            const { glides } = await getGlides();
+            const { glides, lastGlide } = await getGlides();
             if (glides.length > 0) {
                 setStore(
                     produce((store) => {
@@ -33,6 +38,8 @@ const useGlides = () => {
                     })
                 );
             }
+
+            setStore('lastGlide', lastGlide);
         } catch (error) {
             const message = (error as FirebaseError).message;
         } finally {
