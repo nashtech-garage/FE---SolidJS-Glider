@@ -4,14 +4,9 @@ import { createSignal, onMount } from 'solid-js';
 import { createStore, produce } from 'solid-js/store';
 import * as api from '../api/glide';
 import { useAuthState } from '../context/auth';
-import { Glide } from '../types/Glide';
+import { Glide, UseGlideState } from '../types/Glide';
 
-type State = {
-    pages: {
-        [key: string]: { glides: Glide[] };
-    };
-    loading: boolean;
-    lastGlide: QueryDocumentSnapshot | null;
+type State = UseGlideState & {
     freshGlides: Glide[];
 };
 
@@ -67,7 +62,6 @@ const useGlides = () => {
 
         unSubscribe = api.subscribeToGlides(user!, (freshGlides: Glide[]) => {
             setStore('freshGlides', freshGlides);
-            console.log(store.freshGlides);
         });
     };
 

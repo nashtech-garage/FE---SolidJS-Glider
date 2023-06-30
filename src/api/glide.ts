@@ -5,6 +5,7 @@ import {
     DocumentReference,
     getDoc,
     getDocs,
+    increment,
     limit,
     onSnapshot,
     orderBy,
@@ -15,6 +16,7 @@ import {
     setDoc,
     startAfter,
     Timestamp,
+    updateDoc,
     where
 } from 'firebase/firestore';
 import { db } from '../db';
@@ -22,24 +24,24 @@ import { Glide, UserGlide } from '../types/Glide';
 import { User } from '../types/User';
 
 const getGlideById = async (id: string, uid: string) => {
-    const userDocRef = doc(db, "users", uid);
-    const userGlideRef = doc(userDocRef, "glides", id);
-  
+    const userDocRef = doc(db, 'users', uid);
+    const userGlideRef = doc(userDocRef, 'glides', id);
+
     const userGlideSnap = await getDoc(userGlideRef);
     const userGlide = userGlideSnap.data() as UserGlide;
-  
+
     const glideSnap = await getDoc(userGlide.lookup);
     const userDocSnap = await getDoc(userDocRef);
-  
+
     const glide = {
-      ...glideSnap.data(),
-      user: userDocSnap.data(),
-      id: glideSnap.id,
-      lookup: glideSnap.ref.path
+        ...glideSnap.data(),
+        user: userDocSnap.data(),
+        id: glideSnap.id,
+        lookup: glideSnap.ref.path
     } as Glide;
-  
+
     return glide;
-  }
+};
 
 const getGlides = async (
     loggedInUser: User,
@@ -77,6 +79,39 @@ const getGlides = async (
     return { glides, lastGlide: _lastGlide };
 };
 
+const getSubglides = async (
+    glideLookup: string,
+    lastGlide: QueryDocumentSnapshot | null
+) => {
+    const ref = doc(db, glideLookup);
+    const _collection = collection(ref, 'glides');
+
+    const constraints: QueryConstraint[] = [orderBy('date', 'desc'), limit(10)];
+
+    if (lastGlide !== null) {
+        constraints.push(startAfter(lastGlide));
+    }
+
+    const q = query(_collection, ...constraints);
+
+    const qSnapshot = await getDocs(q);
+
+    const _lastGlide = qSnapshot.docs[qSnapshot.docs.length - 1];
+    const glides = await Promise.all(
+        qSnapshot.docs.map(async (doc) => {
+            const glide = doc.data() as Glide;
+            const userSnap = await getDoc(glide.user as DocumentReference);
+            glide.user = userSnap.data() as User;
+
+            return { ...glide, id: doc.id, lookup: doc.ref.path };
+        })
+    );
+    return {
+        glides,
+        lastGlide: _lastGlide
+    };
+};
+
 const subscribeToGlides = (
     loggedInUser: User,
     getCallback: (g: Glide[]) => void
@@ -104,11 +139,28 @@ const subscribeToGlides = (
     });
 };
 
-const createGlide = async (form: {
-    content: string;
-    uid: string;
-}): Promise<Glide> => {
+const getGlideCollection = (answerTo?: string) => {
+    let glideCollection;
+
+    if (!!answerTo) {
+        const ref = doc(db, answerTo);
+        glideCollection = collection(ref, 'glides');
+    } else {
+        glideCollection = collection(db, 'glides');
+    }
+
+    return glideCollection;
+};
+
+const createGlide = async (
+    form: {
+        content: string;
+        uid: string;
+    },
+    answerTo?: string
+): Promise<Glide> => {
     const userRef = doc(db, 'users', form.uid);
+    const glideCollection = getGlideCollection(answerTo);
 
     const glideToStore = {
         ...form,
@@ -118,7 +170,13 @@ const createGlide = async (form: {
         date: Timestamp.now()
     };
 
-    const glideCollection = collection(db, 'glides');
+    if (!!answerTo) {
+        const ref = doc(db, answerTo);
+        await updateDoc(ref, {
+            subglidesCount: increment(1)
+        });
+    }
+
     const added = await addDoc(glideCollection, glideToStore);
 
     const userGlideRef = doc(userRef, 'glides', added.id);
@@ -127,4 +185,10 @@ const createGlide = async (form: {
     return { ...glideToStore, id: added.id, lookup: added.path };
 };
 
-export { createGlide, getGlides, subscribeToGlides, getGlideById };
+export {
+    createGlide,
+    getGlides,
+    subscribeToGlides,
+    getGlideById,
+    getSubglides
+};
