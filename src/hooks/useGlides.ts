@@ -1,8 +1,9 @@
 import { FirebaseError } from 'firebase/app';
-import { QueryDocumentSnapshot } from 'firebase/firestore';
+import { QueryDocumentSnapshot, Unsubscribe } from 'firebase/firestore';
 import { createSignal, onMount } from 'solid-js';
 import { createStore, produce } from 'solid-js/store';
-import { getGlides } from '../api/glide';
+import * as api from '../api/glide';
+import { useAuthState } from '../context/auth';
 import { Glide } from '../types/Glide';
 
 type State = {
@@ -11,13 +12,22 @@ type State = {
     };
     loading: boolean;
     lastGlide: QueryDocumentSnapshot | null;
+    freshGlides: Glide[];
 };
 
-const createInitState = () => ({ pages: {}, loading: false, lastGlide: null });
+const createInitState = () => ({
+    pages: {},
+    loading: false,
+    lastGlide: null,
+    freshGlides: []
+});
 
 const useGlides = () => {
+    const { user } = useAuthState()!;
     const [page, setPage] = createSignal(1);
     const [store, setStore] = createStore<State>(createInitState());
+
+    let unSubscribe: Unsubscribe;
 
     onMount(() => {
         loadGlides();
@@ -30,7 +40,10 @@ const useGlides = () => {
         }
         setStore('loading', true);
         try {
-            const { glides, lastGlide } = await getGlides();
+            const { glides, lastGlide } = await api.getGlides(
+                user!,
+                store.lastGlide
+            );
             if (glides.length > 0) {
                 setStore(
                     produce((store) => {
@@ -45,6 +58,28 @@ const useGlides = () => {
         } finally {
             setStore('loading', false);
         }
+    };
+
+    const subscribeToGlides = () => {
+        if (user?.following.length == 0) {
+            return;
+        }
+
+        unSubscribe = api.subscribeToGlides(user!, (freshGlides: Glide[]) => {
+            setStore('freshGlides', freshGlides);
+            console.log(store.freshGlides);
+        });
+    };
+
+    const unsubscribeFromGlides = () => {
+        if (!!unSubscribe) {
+            unSubscribe();
+        }
+    };
+
+    const resubscribe = () => {
+        unsubscribeFromGlides();
+        subscribeToGlides();
     };
 
     const addGlide = (glide: Glide | undefined) => {
@@ -63,11 +98,24 @@ const useGlides = () => {
         );
     };
 
+    const displayFreshGlides = () => {
+        store.freshGlides.forEach((freshGlide) => {
+            addGlide(freshGlide);
+        });
+
+        setStore('freshGlides', []);
+        resubscribe();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
     return {
         page,
         loadGlides,
         addGlide,
-        store
+        store,
+        subscribeToGlides,
+        unsubscribeFromGlides,
+        displayFreshGlides
     };
 };
 
