@@ -1,17 +1,48 @@
 import { useParams } from '@solidjs/router';
 import { FaSolidArrowLeft } from 'solid-icons/fa';
-import { createResource, onMount, Show } from 'solid-js';
+import { createEffect, createResource, onMount, Show } from 'solid-js';
 import { getGlideById } from '../api/glide';
 import GlidePost from '../components/glides/GlidePost';
+import PaginatedGlides from '../components/glides/PaginatedGlides';
 import MainLayout from '../components/layouts/Main';
 import { CenteredDataLoader } from '../components/utils/DataLoader';
 import Messenger from '../components/utils/Messenger';
+import useSubglides from '../hooks/useSubglides';
+import { Glide } from '../types/Glide';
 import { User } from '../types/User';
 
 const GlideDetail = () => {
     const params = useParams();
-    const [data] = createResource(() => getGlideById(params.id, params.uid));
+    const onGlideLoaded = (glide: Glide) => {
+        resetPagination();
+        loadGlides(glide.lookup!);
+    };
+
+    const [data, { mutate, refetch }] = createResource(async () => {
+        const glide = await getGlideById(params.id, params.uid);
+        onGlideLoaded(glide);
+        return glide;
+    });
+    const { store, page, loadGlides, addGlide, resetPagination } =
+        useSubglides();
     const user = () => data()?.user as User;
+
+    createEffect(() => {
+        if (!data.loading && data()?.id !== params.id) {
+            refetch();
+        }
+    });
+
+    const onGlideAdded = (newGlide?: Glide) => {
+        const glide = data()!;
+
+        mutate({
+            ...glide,
+            subglidesCount: glide.subglidesCount + 1
+        });
+
+        addGlide(newGlide);
+    };
 
     return (
         <MainLayout
@@ -30,8 +61,18 @@ const GlideDetail = () => {
                     <div class="text-sm italic text-gray-300 underline mb-2">
                         Answering to {user().nickName}
                     </div>
-                    <Messenger showAvatar={false} onGlideAdded={() => {}} />
+                    <Messenger
+                        answerTo={data()?.lookup}
+                        showAvatar={false}
+                        onGlideAdded={onGlideAdded}
+                    />
                 </div>
+                <PaginatedGlides
+                    page={page}
+                    pages={store.pages}
+                    loading={store.loading}
+                    loadMoreGlides={() => Promise.resolve()}
+                />
             </Show>
         </MainLayout>
     );

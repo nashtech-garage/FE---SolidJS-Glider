@@ -8,12 +8,15 @@ import { Glide } from '../../types/Glide';
 type Props = {
     onGlideAdded: (g: Glide | undefined) => void;
     showAvatar?: boolean;
+    answerTo?: string;
 };
 
 const Messenger: Component<Props> = (initialprops) => {
     const props = mergeProps({ showAvatar: true }, initialprops);
     const { user } = useAuthState()!;
-    const { handleInput, handleSubmit, form, loading } = useMessenger();
+    const { handleInput, handleSubmit, form, loading } = useMessenger(
+        props.answerTo
+    );
     const sendDisabled = () => loading() || form.content === '';
     const autosize = (e: GliderInputEvent) => {
         const el = e.currentTarget;
