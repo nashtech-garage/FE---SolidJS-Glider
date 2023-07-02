@@ -26,7 +26,7 @@ const HomeScreen: Component = () => {
     });
 
     return (
-        <MainLayout pageTitle="Home">
+        <MainLayout onGlideAdded={addGlide} pageTitle="Home">
             <Messenger onGlideAdded={addGlide} />
             <div class="h-px bg-gray-700 my-1" />
             <Show when={store.freshGlides.length >= 3}>
