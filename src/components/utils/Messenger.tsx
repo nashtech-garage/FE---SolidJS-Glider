@@ -2,8 +2,8 @@ import { FaRegularImage } from 'solid-icons/fa';
 import { Component, mergeProps, Show } from 'solid-js';
 import { useAuthState } from '../../context/auth';
 import useMessenger from '../../hooks/useMessenger';
-import { GliderInputEvent } from '../../types/Form';
 import { Glide } from '../../types/Glide';
+import { GliderFileEvent, GliderInputEvent } from '../../types/Form';
 
 type Props = {
     onGlideAdded: (g: Glide | undefined) => void;
@@ -14,9 +14,8 @@ type Props = {
 const Messenger: Component<Props> = (initialprops) => {
     const props = mergeProps({ showAvatar: true }, initialprops);
     const { user } = useAuthState()!;
-    const { handleInput, handleSubmit, form, loading } = useMessenger(
-        props.answerTo
-    );
+    const { handleInput, handleSubmit, form, loading, image, setImage } =
+        useMessenger(props.answerTo);
     const sendDisabled = () => loading() || form.content === '';
     const autosize = (e: GliderInputEvent) => {
         const el = e.currentTarget;
@@ -24,6 +23,24 @@ const Messenger: Component<Props> = (initialprops) => {
         el.style.height = '0px';
         const { scrollHeight } = el;
         el.style.height = scrollHeight + 'px';
+    };
+
+    const handleImageSelection = (e: GliderFileEvent) => {
+        const file = e.target.files![0];
+        const reader = new FileReader();
+        reader.readAsArrayBuffer(file);
+
+        reader.onload = () => {
+            const buffer = reader.result as ArrayBuffer;
+            const buffer8Uint = new Uint8Array(buffer);
+
+            const blob = new Blob([buffer8Uint], { type: file.type });
+            const urlCreator = window.URL || window.webkitURL;
+
+            const imageUrl = urlCreator.createObjectURL(blob);
+            const previewUrl = urlCreator.createObjectURL(blob);
+            setImage({ buffer, name: file.name, previewUrl });
+        };
     };
 
     return (
@@ -50,11 +67,21 @@ const Messenger: Component<Props> = (initialprops) => {
                         placeholder={"What's new?"}
                     />
                 </div>
+                <Show when={image().previewUrl.length > 0}>
+                    <div class="flex-it max-w-52 p-4">
+                        <img src={image().previewUrl} />
+                    </div>
+                </Show>
                 <div class="flex-it mb-1 flex-row xs:justify-between items-center">
                     <div class="flex-it mt-3 mr-3 cursor-pointer text-white hover:text-blue-400 transition">
                         <div class="upload-btn-wrapper">
                             <FaRegularImage class="cursor-pointer" size={18} />
-                            <input type="file" name="myfile" />
+                            <input
+                                onChange={handleImageSelection}
+                                type="file"
+                                name="myfile"
+                                accept="image/*"
+                            />
                         </div>
                     </div>
                     <div class="flex-it w-32 mt-3 cursor-pointer">

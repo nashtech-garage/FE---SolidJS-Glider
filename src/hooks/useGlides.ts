@@ -1,5 +1,5 @@
 import { FirebaseError } from 'firebase/app';
-import { QueryDocumentSnapshot, Unsubscribe } from 'firebase/firestore';
+import { Unsubscribe } from 'firebase/firestore';
 import { createSignal, onMount } from 'solid-js';
 import { createStore, produce } from 'solid-js/store';
 import * as api from '../api/glide';

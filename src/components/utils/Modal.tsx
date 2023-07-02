@@ -1,6 +1,5 @@
 import { Component, createSignal, Setter, Show, createEffect } from 'solid-js';
 import { Portal } from 'solid-js/web';
-import Button from './Button';
 
 type ModalProps = {
     setOpen: Setter<boolean>;

@@ -10,21 +10,31 @@ import Messenger from '../components/utils/Messenger';
 import useSubglides from '../hooks/useSubglides';
 import { Glide } from '../types/Glide';
 import { User } from '../types/User';
+import { usePersistence } from '../context/persistence';
 
 const GlideDetail = () => {
     const params = useParams();
+    const persistence = usePersistence()!;
     const onGlideLoaded = (glide: Glide) => {
         resetPagination();
         loadGlides(glide.lookup!);
     };
 
     const [data, { mutate, refetch }] = createResource(async () => {
-        const glide = await getGlideById(params.id, params.uid);
+        const glide = await persistence.useRevalidate(
+            `selectedGlide-${params.id}`,
+            () => getGlideById(params.id, params.uid),
+            (latestGlide) => {
+                mutate(latestGlide);
+            }
+        );
         onGlideLoaded(glide);
         return glide;
     });
+
     const { store, page, loadGlides, addGlide, resetPagination } =
         useSubglides();
+
     const user = () => data()?.user as User;
 
     createEffect(() => {
@@ -36,11 +46,12 @@ const GlideDetail = () => {
     const onGlideAdded = (newGlide?: Glide) => {
         const glide = data()!;
 
-        mutate({
+        const glideWithNewCount = {
             ...glide,
             subglidesCount: glide.subglidesCount + 1
-        });
-
+        };
+        mutate(glideWithNewCount);
+        persistence.setValue(`selectedGlide-${params.id}`, glideWithNewCount);
         addGlide(newGlide);
     };
 

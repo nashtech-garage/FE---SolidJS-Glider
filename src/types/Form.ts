@@ -3,10 +3,22 @@ export type GliderInputEvent = InputEvent & {
     target: Element;
 };
 
+export type UploadImage = {
+    buffer: ArrayBuffer;
+    name: string;
+    previewUrl: string;
+};
+
+export type GliderFileEvent = {
+    target: Element & { files?: FileList };
+    currentTarget: HTMLInputElement;
+};
+
 export type Form = { [key: string]: string };
 
 export type MessengerForm = {
     content: string;
+    mediaUrl?: string;
 } & Form;
 
 export type AuthForm = {
