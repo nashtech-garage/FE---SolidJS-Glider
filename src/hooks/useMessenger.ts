@@ -1,14 +1,21 @@
 import { createSignal } from 'solid-js';
 import { createStore } from 'solid-js/store';
-import { createGlide } from '../api/glide';
+import { createGlide, uploadImage } from '../api/glide';
 import { useAuthState } from '../context/auth';
 import { useUIDispatch } from '../context/ui';
-import { GliderInputEvent, MessengerForm } from '../types/Form';
 import { FirebaseError } from 'firebase/app';
+import { GliderInputEvent, MessengerForm, UploadImage } from '../types/Form';
+
+const defaultImage = () => ({
+    buffer: new ArrayBuffer(0),
+    name: '',
+    previewUrl: ''
+});
 
 const useMessenger = (answerTo?: string) => {
     const { isAuthenticated, user } = useAuthState()!;
     const { addSnackbar } = useUIDispatch();
+    const [image, setImage] = createSignal<UploadImage>(defaultImage());
     const [loading, setLoading] = createSignal(false);
     const [form, setForm] = createStore<MessengerForm>({
         content: ''
@@ -29,19 +36,25 @@ const useMessenger = (answerTo?: string) => {
         }
 
         setLoading(true);
-        const glide = {
+        const glideForm = {
             ...form,
             uid: user!.uid
         };
 
         try {
-            const newGlide = await createGlide(glide, answerTo);
+            if (image().buffer.byteLength > 0) {
+                const downloadUrl = await uploadImage(image());
+                glideForm.mediaUrl = downloadUrl;
+            }
+
+            const newGlide = await createGlide(glideForm, answerTo);
             newGlide.user = {
                 nickName: user!.nickName,
                 avatar: user!.avatar
             };
             addSnackbar({ message: 'Glide Added!', type: 'success' });
             setForm({ content: '' });
+            setImage(defaultImage());
             return newGlide;
         } catch (error) {
             const message = (error as FirebaseError).message;
@@ -55,7 +68,9 @@ const useMessenger = (answerTo?: string) => {
         handleInput,
         handleSubmit,
         form,
-        loading
+        loading,
+        image,
+        setImage
     };
 };
 

@@ -1,7 +1,6 @@
 import { Component, For, Show } from 'solid-js';
 import MainLayout from '../components/layouts/Main';
 import { CenteredDataLoader } from '../components/utils/DataLoader';
-import Loader from '../components/utils/Loader';
 import { useAuthState } from '../context/auth';
 import useUsers from '../hooks/useUsers';
 
